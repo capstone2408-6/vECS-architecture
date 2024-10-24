@@ -6,12 +6,24 @@ import boto3
 ecs_client = boto3.client('ecs')
 
 def lambda_handler(event, context):
-    # Extract information from the S3 event
-    bucket_name = event['Records'][0]['s3']['bucket']['name']
-    document_key = event['Records'][0]['s3']['object']['key']
+    # Check if this is a delete event
+    if event.get('RequestType') == 'Delete':
+        print("Stack is being deleted, no ECS task will be started.")
+        return {
+            'statusCode': 200,
+            'body': json.dumps("Delete event - no action taken.")
+        }
     
-    # Construct the S3 URL for the specific object
-    s3_url = f"s3://{bucket_name}/{document_key}"
+    # Check if triggered by S3 event (with 'Records' key)
+    if 'Records' in event:
+        # Extract information from the S3 event
+        bucket_name = event['Records'][0]['s3']['bucket']['name']
+        document_key = event['Records'][0]['s3']['object']['key']
+        s3_url = f"s3://{bucket_name}/{document_key}"  # Single document
+    else:
+        # When triggered for all documents (e.g., on deployment)
+        bucket_name = os.getenv('S3_BUCKET_NAME')  # Ensure you have this environment variable set
+        s3_url = f"s3://{bucket_name}/"  # Entire bucket
     
     # Environment variables 
     aws_access_key = os.getenv('MY_AWS_ACCESS_KEY_ID')
